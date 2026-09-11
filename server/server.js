@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { connectDB } from './config/db.js';
 import Car from './models/Car.js';
 import { cars as seedCars } from './seed/carsData.js';
@@ -9,6 +11,9 @@ import bookingRoutes from './routes/bookingRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -22,6 +27,16 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'luxora-a
 app.use('/api/cars', carRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/auth', authRoutes);
+
+// Serve the production React build when it is included in the Docker image.
+const clientDist = path.join(__dirname, 'client-dist');
+app.use(express.static(clientDist));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  res.sendFile(path.join(clientDist, 'index.html'), (error) => {
+    if (error) next();
+  });
+});
 
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route not found' }));
